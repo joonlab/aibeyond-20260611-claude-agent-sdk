@@ -18,3 +18,6 @@ nohup.out
 # OS
 .DS_Store
 .vercel
+
+# 데모 실행 로그
+*.log
