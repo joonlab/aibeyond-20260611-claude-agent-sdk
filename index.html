@@ -280,9 +280,17 @@
   .prompt-row:last-child { border-bottom: 0; }
   .prompt-row .pt { font-family: 'JetBrains Mono', monospace; font-size: 21px; color: var(--muted); width: 80px; flex-shrink: 0; padding-top: 4px; font-weight: 600; }
   .prompt-row .pn { font-family: 'Noto Serif KR', serif; font-weight: 900; font-size: 34px; line-height: 1; width: 44px; flex-shrink: 0; color: var(--accent); }
-  .prompt-row .pq { font-size: 25px; line-height: 1.4; color: var(--ink-2); }
+  .prompt-row .pq { flex: 1; font-size: 24px; line-height: 1.4; color: var(--ink-2); align-self: center; }
+  .prompt-row .pmap { flex-shrink: 0; width: 250px; text-align: right; align-self: center; font-family: 'JetBrains Mono', monospace; font-size: 20px; line-height: 1.35; color: var(--muted); padding-left: 20px; border-left: 1px solid var(--rule); }
+  .prompt-row .pmap b { color: var(--accent); font-weight: 700; }
   .prompt-row.key { background: rgba(165,0,52,0.04); margin: 0 -20px; padding: 16px 20px; border-bottom: 1px solid var(--rule-soft); }
   .prompt-row.key .pq { color: var(--ink); font-weight: 500; }
+  .prompt-row.key .pmap { border-left-color: rgba(165,0,52,0.2); }
+
+  /* ---- "발단 요청" inline quote (각 Phase가 어떤 프롬프트에서 나왔는지) ---- */
+  .from-q { font-size: 20px; line-height: 1.4; color: var(--ink-2); border-left: 2px solid var(--accent-2); padding: 5px 0 5px 16px; margin: 4px 0 16px; font-style: italic; }
+  .from-q .tag { font-family: 'JetBrains Mono', monospace; font-style: normal; font-size: 15px; letter-spacing: 0.08em; color: var(--accent-2); margin-right: 12px; text-transform: uppercase; font-weight: 700; }
+  .slide.dark .from-q { color: #cfc6b2; }
 
   /* ---- Showcase image frame ---- */
   .shot-frame { border: 1px solid var(--rule); box-shadow: 0 18px 60px rgba(0,0,0,0.14); background: #fff; padding: 8px; }
@@ -414,33 +422,39 @@
   <section data-label="04 Prompts" class="slide cream-deep">
     <div class="head"><div class="section-tag">The 6 Prompts</div><div class="time">내가 실제로 한 말</div></div>
     <div style="margin-top: 18px;">
-      <div class="kicker" data-reveal style="--ri:0;">WHAT I ACTUALLY TYPED</div>
-      <h2 class="title" data-reveal style="--ri:1; font-size: 54px;">결과물의 <span class="hl">형태와 방향</span>만 말했다</h2>
+      <div class="kicker" data-reveal style="--ri:0;">WHAT I ACTUALLY TYPED → WHAT IT BUILT</div>
+      <h2 class="title" data-reveal style="--ri:1; font-size: 52px;">프롬프트 6개가 <span class="hl">각 Phase</span>가 됐다</h2>
     </div>
-    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; margin-top: 12px; max-width: 1640px;">
+    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; margin-top: 10px; max-width: 1680px;">
       <div class="prompt-row" data-reveal style="--ri:2;">
         <div class="pt">00:48</div><div class="pn">1</div>
         <div class="pq">“영상 mp3로 받고, STT로 전사해서 저장, mp3는 삭제. 내용 파악 후 요약해줘”</div>
+        <div class="pmap">출발점 · 영상 요약</div>
       </div>
       <div class="prompt-row" data-reveal style="--ri:3;">
         <div class="pt">00:52</div><div class="pn">2</div>
         <div class="pq">“ADK·SDK를 튜토리얼로. <b>가능한 한 많은 예시</b>로 2개 Phase. 과정·결과·활용까지 HTML 보고서로”</div>
+        <div class="pmap"><b>Phase 1·2</b> + HTML 보고서</div>
       </div>
       <div class="prompt-row key" data-reveal style="--ri:4;">
         <div class="pt">01:15</div><div class="pn">3</div>
-        <div class="pq">“ClaudeSDKClient 쓰는 걸 넣어줘. <span class="hl">CLI로 쓰는 건 관심 없어.</span> research 웹앱 같은 것도” <span class="mono muted" style="font-size:19px;">→ Phase 1 통째로 재구성</span></div>
+        <div class="pq">“ClaudeSDKClient 쓰는 걸 넣어줘. <span class="hl">CLI로 쓰는 건 관심 없어.</span> research 웹앱 같은 것도”</div>
+        <div class="pmap"><b>Phase 1 재구성</b> + <b>Phase 3</b></div>
       </div>
       <div class="prompt-row" data-reveal style="--ri:5;">
         <div class="pt">01:39</div><div class="pn">4</div>
         <div class="pq">“내 skills·harness가 SDK에서 되는지 <b>조사부터 정확히 한 후</b> 정밀 구현된 고도화 튜토리얼로”</div>
+        <div class="pmap"><b>Phase 4</b> · Harness</div>
       </div>
       <div class="prompt-row" data-reveal style="--ri:6;">
         <div class="pt">01:58</div><div class="pn">5</div>
         <div class="pq">“youtube-download skill을 SDK로 발동하는 예시 + 각 Phase로 점프하는 사이드바”</div>
+        <div class="pmap">Phase 4 · <b>예제 7</b></div>
       </div>
       <div class="prompt-row key" data-reveal style="--ri:7;">
         <div class="pt">02:10</div><div class="pn">6</div>
-        <div class="pq">“skill 3개 혼합해서 그 영상을 <span class="hl2">한국어 인포그래픽 한 장</span>으로 요약하는 걸 SDK로” <span class="mono muted" style="font-size:19px;">→ 11쪽 결과물</span></div>
+        <div class="pq">“skill 3개 혼합해서 그 영상을 <span class="hl2">한국어 인포그래픽 한 장</span>으로 요약하는 걸 SDK로”</div>
+        <div class="pmap">Phase 4 · <b>예제 8</b> <span class="muted">(11쪽)</span></div>
       </div>
     </div>
     <div class="foot"><div></div><div>04 / 20</div></div>
@@ -506,24 +520,28 @@
         <div class="mono" style="font-size: 17px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 18px;">SDK 기초</div>
         <div style="font-size: 27px; font-weight: 700; line-height: 1.25; margin-top: 10px;">6예제</div>
         <div style="margin-top: 12px; font-size: 21px; color: var(--ink-2); line-height: 1.45;">query·멀티턴·권한콜백·MCP·프롬프트·Research</div>
+        <div class="mono" style="margin-top: auto; padding-top: 14px; font-size: 16px; color: var(--accent-2); letter-spacing: 0.04em;">← Prompt 2</div>
       </div>
       <div data-reveal style="--ri:4; display: flex; flex-direction: column; border-top: 3px solid var(--ink); padding-top: 22px;">
         <div style="font-family:'Noto Serif KR'; font-weight: 900; font-size: 92px; line-height: 0.9;">02</div>
         <div class="mono" style="font-size: 17px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 18px;">CLI 재현</div>
         <div style="font-size: 27px; font-weight: 700; line-height: 1.25; margin-top: 10px;">4종</div>
         <div style="margin-top: 12px; font-size: 21px; color: var(--ink-2); line-height: 1.45;">코드탐색·PR생성·일괄리팩토링·코드리뷰</div>
+        <div class="mono" style="margin-top: auto; padding-top: 14px; font-size: 16px; color: var(--accent-2); letter-spacing: 0.04em;">← Prompt 3</div>
       </div>
       <div data-reveal style="--ri:5; display: flex; flex-direction: column; border-top: 3px solid var(--ink); padding-top: 22px;">
         <div style="font-family:'Noto Serif KR'; font-weight: 900; font-size: 92px; line-height: 0.9;">03</div>
         <div class="mono" style="font-size: 17px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 18px;">Research 웹앱</div>
         <div style="font-size: 27px; font-weight: 700; line-height: 1.25; margin-top: 10px;">FastAPI+SSE</div>
         <div style="margin-top: 12px; font-size: 21px; color: var(--ink-2); line-height: 1.45;">실시간 스트리밍 리서치 에이전트</div>
+        <div class="mono" style="margin-top: auto; padding-top: 14px; font-size: 16px; color: var(--accent-2); letter-spacing: 0.04em;">← Prompt 3</div>
       </div>
       <div data-reveal style="--ri:6; display: flex; flex-direction: column; border-top: 3px solid var(--accent-2); padding-top: 22px;">
         <div style="font-family:'Noto Serif KR'; font-weight: 900; font-size: 92px; line-height: 0.9;" class="accent2">04</div>
         <div class="mono" style="font-size: 17px; color: var(--accent-2); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 18px;">Harness 정밀 구현</div>
         <div style="font-size: 27px; font-weight: 700; line-height: 1.25; margin-top: 10px;">8예제</div>
         <div style="margin-top: 12px; font-size: 21px; color: var(--ink-2); line-height: 1.45;">CLI harness 전수 실증</div>
+        <div class="mono" style="margin-top: auto; padding-top: 14px; font-size: 16px; color: var(--accent-2); letter-spacing: 0.04em;">← Prompt 4·5·6</div>
       </div>
     </div>
     <div class="foot"><div></div><div>07 / 20</div></div>
@@ -539,7 +557,8 @@
     <div style="flex: 1; display: flex; gap: 48px; margin-top: 24px; align-items: center;">
       <div data-reveal style="--ri:2; flex: 1; border-top: 3px solid var(--ink); padding-top: 24px;">
         <div class="mono" style="font-size: 18px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase;">Phase 1 — SDK 기초</div>
-        <ul class="clean tight" style="margin-top: 14px;">
+        <div class="from-q"><span class="tag">Prompt 2</span>“가능한 한 많은 예시로 2개 Phase”</div>
+        <ul class="clean tight" style="margin-top: 10px;">
           <li><b>query()</b> 5줄 one-shot 에이전트</li>
           <li><b>ClaudeSDKClient</b> 멀티턴 — 메모리 자동 유지</li>
           <li>권한 콜백 <span class="mono">can_use_tool</span> — <span class="hl">rm -rf 차단</span></li>
@@ -551,7 +570,8 @@
       </div>
       <div data-reveal style="--ri:3; flex: 1; border-top: 3px solid var(--ink); padding-top: 24px;">
         <div class="mono" style="font-size: 18px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase;">Phase 2 — CLI 일상 재현</div>
-        <ul class="clean tight" style="margin-top: 14px;">
+        <div class="from-q"><span class="tag">Prompt 3</span>“CLI로 쓰는 건 관심 없어”</div>
+        <ul class="clean tight" style="margin-top: 10px;">
           <li>코드베이스 탐색 — Glob+Read 요약 &amp; 학습 순서</li>
           <li>git diff → <b>PR description</b> 자동 생성</li>
           <li>다중 파일 일괄 리팩토링 — dry-run → apply → grep 검증</li>
@@ -575,6 +595,7 @@
     </div>
     <div style="flex: 1; display: flex; gap: 56px; margin-top: 24px; align-items: center;">
       <div data-reveal style="--ri:3; flex: 1.1;">
+        <div class="from-q" style="margin-bottom: 22px;"><span class="tag">Prompt 3</span>“영상 마지막의 research 웹앱 같은 것도”</div>
         <ul class="clean">
           <li>SSE <b>5종 이벤트</b> — <span class="mono" style="font-size:22px;">status · thinking · tool · chunk · done</span></li>
           <li>생각 과정·도구 호출이 <b>신문 스타일</b> 화면에 실시간으로</li>
@@ -606,18 +627,19 @@
     </div>
     <div style="flex: 1; display: flex; gap: 44px; margin-top: 24px; align-items: center;">
       <div data-reveal style="--ri:3; flex: 1;">
+        <div class="from-q"><span class="tag">Prompt 4</span>“조사부터 정확히 한 후 고도화 튜토리얼로”</div>
         <ul class="clean tight">
           <li><b>Hooks</b> — <span class="mono">.env</span> 쓰기 deny 동작 확인</li>
           <li><b>Subagents</b> — reviewer·tester·docs 3개 동시 spawn</li>
           <li><b>Sessions</b> — resume 기억 / fork 분기 / 원본 무영향</li>
-          <li><b>Skills</b> — 222개 중 1개만 활성화해 발동</li>
+          <li><b>Skills</b> — 222개 중 1개만 활성화해 발동 <span class="mono muted" style="font-size:18px;">(P5)</span></li>
         </ul>
-        <div style="margin-top: 20px; padding: 16px 20px; border-left: 3px solid var(--accent); font-size: 23px; color: var(--ink-2); line-height: 1.5;">
+        <div style="margin-top: 18px; padding: 16px 20px; border-left: 3px solid var(--accent); font-size: 23px; color: var(--ink-2); line-height: 1.5;">
           발견: <span class="hl">Skill 도구 ≠ Skill 동작</span> — 활성화는 SDK가, 실제 행동은 system_prompt가 제어
         </div>
       </div>
       <div data-reveal style="--ri:4; flex: 1; border: 1px solid var(--rule); padding: 32px 36px; background: var(--paper);">
-        <div class="mono" style="font-size: 19px; color: var(--accent-2); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px;">3-Skill 인포그래픽 파이프라인</div>
+        <div class="mono" style="font-size: 19px; color: var(--accent-2); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px;">3-Skill 인포그래픽 파이프라인 <span class="muted" style="font-size:15px;">· Prompt 6</span></div>
         <div class="tree" style="font-size: 24px; line-height: 1.9;">
 <pre style="margin:0; font-family: inherit;">youtube-download
    ↓  <span style="color:var(--muted);">단일 prompt · 자율 4단계</span>
