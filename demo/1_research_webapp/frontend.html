@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude SDK · Research Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;700&family=Pretendard:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f4ede0;
+    --ink: #1c1c1c;
+    --ink-soft: #4a4a4a;
+    --rule: #2a2a2a;
+    --highlight: #d4453b;
+    --accent: #2d5cab;
+    --muted: #8b8579;
+    --bg-card: #fcf8f0;
+    --shadow: rgba(28, 28, 28, 0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Pretendard", -apple-system, sans-serif;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(0,0,0,0.05) 1px, transparent 0);
+    background-size: 24px 24px;
+    min-height: 100vh;
+  }
+
+  /* MASTHEAD - Newspaper-style */
+  .masthead {
+    border-bottom: 4px double var(--rule);
+    padding: 32px 48px 24px;
+    background: var(--paper);
+    position: relative;
+  }
+  .masthead::before {
+    content: "VOL. I · NO. 1";
+    position: absolute;
+    top: 12px;
+    left: 48px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+  }
+  .masthead::after {
+    content: "EST. 2026";
+    position: absolute;
+    top: 12px;
+    right: 48px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+  }
+  .masthead h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 800;
+    font-size: 64px;
+    text-align: center;
+    line-height: 1;
+    letter-spacing: -2px;
+    margin-top: 16px;
+    font-variation-settings: "opsz" 144;
+  }
+  .masthead .sub {
+    text-align: center;
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-size: 16px;
+    color: var(--ink-soft);
+    margin-top: 8px;
+    font-variation-settings: "opsz" 14;
+  }
+  .masthead .powered {
+    text-align: center;
+    margin-top: 18px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .masthead .powered b { color: var(--highlight); }
+
+  /* SEARCH */
+  .search-wrap {
+    max-width: 1100px;
+    margin: 32px auto;
+    padding: 0 32px;
+  }
+  .search-box {
+    display: flex;
+    gap: 0;
+    border: 2px solid var(--ink);
+    background: var(--bg-card);
+    box-shadow: 6px 6px 0 var(--ink);
+  }
+  .search-box input {
+    flex: 1;
+    border: 0;
+    padding: 22px 26px;
+    font-size: 18px;
+    font-family: "Fraunces", serif;
+    background: transparent;
+    color: var(--ink);
+    outline: none;
+  }
+  .search-box input::placeholder {
+    color: var(--muted);
+    font-style: italic;
+  }
+  .search-box button {
+    border: 0;
+    border-left: 2px solid var(--ink);
+    background: var(--highlight);
+    color: var(--paper);
+    padding: 0 32px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .search-box button:hover:not(:disabled) {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .search-box button:disabled {
+    background: var(--muted);
+    cursor: wait;
+    opacity: 0.6;
+  }
+  .hints {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .hint {
+    padding: 6px 12px;
+    border: 1px solid var(--rule);
+    background: transparent;
+    color: var(--ink-soft);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .hint:hover {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  /* LAYOUT */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 32px 80px;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 36px;
+  }
+  @media (max-width: 900px) {
+    .container { grid-template-columns: 1fr; }
+    .masthead h1 { font-size: 44px; }
+  }
+
+  /* MAIN ARTICLE */
+  .article {
+    background: var(--bg-card);
+    border: 1px solid var(--rule);
+    padding: 36px 44px;
+    box-shadow: 8px 8px 0 var(--shadow);
+    min-height: 60vh;
+    position: relative;
+  }
+  .article::before {
+    content: "REPORT";
+    position: absolute;
+    top: -12px;
+    left: 32px;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 4px 14px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+  }
+  .article .placeholder {
+    color: var(--muted);
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    text-align: center;
+    padding: 80px 20px;
+    font-size: 18px;
+    line-height: 1.6;
+  }
+  .article-body {
+    font-family: "Fraunces", serif;
+    font-size: 17px;
+    line-height: 1.7;
+    color: var(--ink);
+    font-variation-settings: "opsz" 14;
+  }
+  .article-body h1, .article-body h2, .article-body h3 {
+    font-family: "Fraunces", serif;
+    font-weight: 800;
+    margin-top: 32px;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+    font-variation-settings: "opsz" 144;
+  }
+  .article-body h1 { font-size: 36px; border-bottom: 2px solid var(--rule); padding-bottom: 10px; }
+  .article-body h2 { font-size: 26px; }
+  .article-body h3 { font-size: 20px; color: var(--accent); }
+  .article-body p { margin: 12px 0; }
+  .article-body ul, .article-body ol { margin: 12px 0 12px 24px; }
+  .article-body li { margin: 6px 0; }
+  .article-body a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .article-body strong { font-weight: 800; color: var(--highlight); }
+  .article-body code {
+    font-family: "JetBrains Mono", monospace;
+    background: var(--paper);
+    padding: 2px 6px;
+    border: 1px solid var(--rule);
+    font-size: 13px;
+  }
+  .article-body pre {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 18px 20px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    border: 0;
+    margin: 16px 0;
+  }
+  .article-body pre code { background: none; border: 0; padding: 0; color: inherit; }
+  .article-body blockquote {
+    border-left: 4px solid var(--highlight);
+    padding: 8px 18px;
+    margin: 18px 0;
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--rule);
+    padding: 18px 22px;
+  }
+  .panel-title {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+  }
+  .timeline { font-family: "JetBrains Mono", monospace; font-size: 12px; }
+  .timeline-item {
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--rule);
+    color: var(--ink-soft);
+    word-break: break-word;
+  }
+  .timeline-item:last-child { border-bottom: 0; }
+  .timeline-item .tag {
+    display: inline-block;
+    padding: 1px 6px;
+    margin-right: 6px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .tag.status { background: var(--muted); color: var(--paper); }
+  .tag.thinking { background: var(--accent); color: var(--paper); }
+  .tag.tool { background: var(--highlight); color: var(--paper); }
+  .tag.error { background: #c00; color: var(--paper); }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat {
+    border: 1px solid var(--rule);
+    padding: 10px 12px;
+    background: var(--paper);
+  }
+  .stat .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .stat .val {
+    font-family: "Fraunces", serif;
+    font-weight: 800;
+    font-size: 20px;
+    margin-top: 4px;
+  }
+
+  /* LOADING */
+  .loader {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background: var(--highlight);
+    animation: blink 1s infinite;
+  }
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.2; }
+  }
+
+  footer {
+    text-align: center;
+    padding: 40px 32px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    border-top: 1px solid var(--rule);
+    margin-top: 60px;
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <h1>The Research Daily</h1>
+  <div class="sub">— a Claude Agent SDK demonstration, est. for one quiet evening —</div>
+  <div class="powered">powered by <b>claude-agent-sdk</b> · streaming via SSE · model <b>opus-4.7</b></div>
+</header>
+
+<div class="search-wrap">
+  <div class="search-box">
+    <input id="q" type="text" placeholder="물어볼 것을 적어보세요 — 예: 'WebSocket과 SSE의 차이는?'" />
+    <button id="run">RESEARCH ▸</button>
+  </div>
+  <div class="hints">
+    <span class="hint">Claude Agent SDK가 무엇인지 알려줘</span>
+    <span class="hint">Server-Sent Events와 WebSocket 비교</span>
+    <span class="hint">FastAPI에서 SSE 구현하는 방법</span>
+    <span class="hint">2026년 LLM 가격 동향</span>
+  </div>
+</div>
+
+<main class="container">
+  <article class="article" id="article">
+    <div class="placeholder" id="placeholder">
+      질문을 입력하면<br>
+      <strong style="color:var(--highlight); font-style: normal;">Claude</strong>가 웹을 검색해<br>
+      이 자리에 보고서를 써냅니다.
+    </div>
+    <div class="article-body" id="body" style="display:none"></div>
+  </article>
+
+  <aside class="sidebar">
+    <div class="panel">
+      <div class="panel-title">Live Timeline</div>
+      <div class="timeline" id="timeline">
+        <div class="timeline-item" style="color:var(--muted);">대기 중...</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Run Stats</div>
+      <div class="stats">
+        <div class="stat"><div class="label">Duration</div><div class="val" id="stat-duration">—</div></div>
+        <div class="stat"><div class="label">Cost (USD)</div><div class="val" id="stat-cost">—</div></div>
+        <div class="stat"><div class="label">Turns</div><div class="val" id="stat-turns">—</div></div>
+        <div class="stat"><div class="label">Status</div><div class="val" id="stat-status">idle</div></div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  CLAUDE AGENT SDK TUTORIAL · 2026 · BUILT WITH FASTAPI + SSE
+</footer>
+
+<script>
+  const $q = document.getElementById("q");
+  const $run = document.getElementById("run");
+  const $body = document.getElementById("body");
+  const $placeholder = document.getElementById("placeholder");
+  const $timeline = document.getElementById("timeline");
+  const $hints = document.querySelectorAll(".hint");
+
+  // Tiny markdown → HTML (h1/h2/h3, lists, code, links, bold)
+  function mdToHtml(md) {
+    let html = md;
+    html = html.replace(/```([\s\S]*?)```/g, (_, c) => `<pre><code>${escape(c)}</code></pre>`);
+    html = html.replace(/`([^`]+)`/g, (_, c) => `<code>${escape(c)}</code>`);
+    html = html.replace(/^### (.+)$/gm, "<h3>$1</h3>");
+    html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
+    html = html.replace(/^# (.+)$/gm, "<h1>$1</h1>");
+    html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    // bullet list
+    html = html.replace(/^([*\-]) (.+)$/gm, "<li>$2</li>");
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`);
+    // paragraphs
+    html = html.split(/\n\n+/).map(b => {
+      if (b.match(/^<(h\d|ul|ol|pre|blockquote)/)) return b;
+      return `<p>${b.replace(/\n/g, "<br>")}</p>`;
+    }).join("\n");
+    return html;
+  }
+  function escape(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function addTimeline(tag, text) {
+    const div = document.createElement("div");
+    div.className = "timeline-item";
+    div.innerHTML = `<span class="tag ${tag}">${tag.toUpperCase()}</span>${escape(text)}`;
+    $timeline.appendChild(div);
+    div.scrollIntoView({behavior: "smooth", block: "end"});
+  }
+
+  let buf = "";
+  let activeES = null;
+
+  function runQuery(q) {
+    if (activeES) activeES.close();
+    buf = "";
+    $body.innerHTML = "";
+    $body.style.display = "none";
+    $placeholder.style.display = "block";
+    $timeline.innerHTML = "";
+    $run.disabled = true;
+    $run.textContent = "WORKING…";
+    document.getElementById("stat-status").textContent = "live";
+    document.getElementById("stat-duration").textContent = "—";
+    document.getElementById("stat-cost").textContent = "—";
+    document.getElementById("stat-turns").textContent = "—";
+
+    const url = `/api/research?q=${encodeURIComponent(q)}`;
+    const es = new EventSource(url);
+    activeES = es;
+
+    es.addEventListener("status", e => {
+      const d = JSON.parse(e.data);
+      addTimeline("status", d.msg);
+    });
+    es.addEventListener("thinking", e => {
+      const d = JSON.parse(e.data);
+      addTimeline("thinking", d.text || "(empty)");
+    });
+    es.addEventListener("tool", e => {
+      const d = JSON.parse(e.data);
+      let label = d.name;
+      if (d.input?.query) label += `: "${d.input.query}"`;
+      else if (d.input?.url) label += `: ${d.input.url.slice(0, 50)}`;
+      addTimeline("tool", label);
+    });
+    es.addEventListener("chunk", e => {
+      const d = JSON.parse(e.data);
+      buf += d.text + "\n\n";
+      $placeholder.style.display = "none";
+      $body.style.display = "block";
+      $body.innerHTML = mdToHtml(buf);
+    });
+    es.addEventListener("done", e => {
+      const d = JSON.parse(e.data);
+      document.getElementById("stat-duration").textContent = (d.duration_ms/1000).toFixed(1) + "s";
+      document.getElementById("stat-cost").textContent = "$" + d.cost_usd.toFixed(3);
+      document.getElementById("stat-turns").textContent = d.num_turns;
+      document.getElementById("stat-status").textContent = "done";
+      addTimeline("status", "✓ 완료");
+      es.close();
+      $run.disabled = false;
+      $run.textContent = "RESEARCH ▸";
+    });
+    es.addEventListener("error", e => {
+      try { addTimeline("error", JSON.parse(e.data).msg); }
+      catch { addTimeline("error", "연결 끊김"); }
+      document.getElementById("stat-status").textContent = "error";
+      es.close();
+      $run.disabled = false;
+      $run.textContent = "RESEARCH ▸";
+    });
+  }
+
+  $run.addEventListener("click", () => {
+    const q = $q.value.trim();
+    if (!q) return;
+    runQuery(q);
+  });
+  $q.addEventListener("keydown", e => {
+    if (e.key === "Enter") $run.click();
+  });
+  $hints.forEach(h => {
+    h.addEventListener("click", () => {
+      $q.value = h.textContent;
+      $run.click();
+    });
+  });
+</script>
+
+</body>
+</html>

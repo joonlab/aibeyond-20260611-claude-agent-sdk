@@ -1,0 +1,19 @@
+# 비밀정보 — 절대 커밋 금지
+.env
+**/.env
+*.token
+
+# 별도 repo (claude-agent-sdk-tutorial는 독립 repo)
+claude-agent-sdk-tutorial/
+
+# 대용량/휘발성
+*.mp3
+venv/
+__pycache__/
+node_modules/
+demo/3_infographic/output/
+demo/**/logs/
+nohup.out
+
+# OS
+.DS_Store

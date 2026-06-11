@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Claude Agent SDK로 어떤 것까지 가능할까?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&family=Noto+Serif+KR:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Speaker notes: one string per slide, in slide order. Optional but recommended.
+     The deck-stage component reads this and posts it to any notes renderer. -->
+<script type="application/json" id="speaker-notes">
+[
+  "오늘 주제는 'Claude Agent SDK로 어디까지 되는가', 그리고 도발적으로 'Claude Code CLI를 완전히 대체할 수 있는가'입니다. 15분 라이트닝으로 핵심만 빠르게 보겠습니다.",
+  "시작은 유튜브 영상 하나였습니다. 재밌는 건 이 영상조차 Claude로 처리했다는 점이에요. youtube-download skill로 mp3를 뽑고, elevenlabs-stt로 전사하고, 요약까지 Claude가 했습니다. 영상의 핵심 메시지는 '바닥부터 만들지 말고 Claude Code harness를 상속하라'였고, 그게 이 SDK의 철학과 정확히 맞닿아 있습니다.",
+  "Agent SDK의 구조가 의외입니다. API를 직접 부르는 게 아니라 Claude Code CLI를 subprocess로 실행합니다. 클라이언트에서 SDK, CLI, 그리고 Claude로 이어지는 4단계죠. 그래서 CLI의 모든 harness를 그대로 상속받습니다. 이게 오늘 이야기의 핵심 전제입니다.",
+  "검증은 4-Phase 튜토리얼로 진행했습니다. SDK 기초 6예제, CLI 일상작업 재현 4종, Research 웹앱, 그리고 Claude Code Harness 정밀 구현 8예제. 전부 Claude Code와의 대화만으로 만들었습니다.",
+  "Phase 1은 5줄짜리 query부터 멀티턴 메모리, rm -rf를 막는 권한 콜백, in-process MCP 도구까지. 캐시가 한번 만들어지면 비용이 55% 떨어지는 게 실측으로 보였습니다. Phase 2는 CLI에서 매일 하던 코드 탐색, PR 생성, 일괄 리팩토링, 코드 리뷰를 전부 SDK로 재현했습니다.",
+  "Phase 3은 ClaudeSDKClient를 FastAPI 백엔드에 임베드하고 SSE로 실시간 스트리밍하는 Research 웹앱입니다. 질문 1건에 43.5초, 0.25달러, 5턴. 생각 과정과 도구 호출이 신문 스타일 화면에 실시간으로 흐릅니다.",
+  "Phase 4가 클라이맥스입니다. 공식 문서를 cmux browser와 5개 병렬 sub-agent로 조사한 뒤 harness를 전부 실증했어요. 특히 222개 skill 중 1개만 활성화해 발동시키는 데 성공했고, 영상에서 인포그래픽까지 단일 프롬프트로 자율 진행하는 3-Skill 파이프라인이 230초 만에 완성됐습니다.",
+  "그래서 핵심 질문, CLI에서 되는 게 SDK에서 다 되느냐. 이 표가 답입니다. Skills, Hooks, Subagents, Commands, MCP, Sessions까지 거의 전부 호환되고, SessionStorage 같은 건 SDK가 오히려 더 강력합니다. 노란 표시 하나만 부분 호환이에요.",
+  "결론은 '거의 YES, 단 목적이 다르다'입니다. 예외는 두 가지뿐 — Python에서 SessionStart/End hook 직접 정의, 그리고 인터랙티브 터미널 UX. 한 줄로 정리하면 'Claude Code = SDK + 표준 harness 번들'입니다.",
+  "여기서 가장 많이 받은 질문. API Key 없이 Agent SDK를 쓸 수 있느냐. 답은 '가능'입니다. SDK가 CLI를 subprocess로 부르니까, CLI가 가진 OAuth 토큰을 그대로 씁니다. velog 조현상님 글이 이걸 잘 정리해뒀습니다.",
+  "그런데 발표 나흘 뒤인 6월 15일부터 정책이 바뀝니다. Agent SDK 사용량이 구독 한도에서 빠지고, 플랜별 월간 크레딧으로 분리됩니다. Pro 20달러, Max 20배는 200달러죠. 태극님 질문이 이걸 파게 된 계기였습니다. '구독으로 무제한'이라는 표현은 이제 틀린 말이 됩니다.",
+  "말로만 하면 안 되니 실측으로 증명했습니다. 20개 스크립트에서 ANTHROPIC_API_KEY를 강제로 지우고 OAuth 토큰만 남겼더니, init 로그의 apiKeySource가 ANTHROPIC_API_KEY에서 none으로 바뀌었습니다. 종량제 경로가 아니라는 증거고, 인증 실패는 0건이었습니다.",
+  "이제 직접 보여드리겠습니다. 셋 다 OAuth 구독 기반으로 돌아갑니다. Research 웹앱, CLI와 SDK 나란히 비교, 그리고 발표 시작할 때 백그라운드로 돌려둔 인포그래픽 파이프라인 결과까지.",
+  "실무에서는 이렇게 나누면 됩니다. 개인 실험과 자동화는 크레딧 범위에서 OAuth로 충분합니다. 하지만 프로덕션이나 대규모는 공식 문서가 API Key 종량제를 권장합니다. 공개 백엔드에 OAuth 토큰을 박는 건 ToS 위반이니 금물입니다.",
+  "오늘 만든 건 전부 공개해뒀습니다. 덱과 튜토리얼 repo 링크입니다. CLI로 프로토타입을 만들고 SDK로 프로덕션에 올리는 게 정석 워크플로우라는 것, 그리고 6/15부터는 '완전 대체'하면 과금 버킷이 바뀐다는 것만 기억해 주세요. 감사합니다."
+]
+</script>
+
+<style>
+  /* ============================================================
+     LG DESIGN SYSTEM — design tokens
+     LG Red #A50034 · Neutral Gray #6B6B6B · Premium Silver #8A8D8F · Gold #85714D
+     Fonts: Noto Serif KR (display) · Noto Sans KR (body) · JetBrains Mono (code)
+     ============================================================ */
+  :root {
+    --bg: #ffffff;         /* pure white */
+    --bg-deep: #f5f5f5;    /* subtle off-white panel */
+    --paper: #ffffff;
+    --ink: #1a1a1a;        /* near-black ink */
+    --ink-2: #2e2e2e;
+    --muted: #6B6B6B;      /* Neutral Gray */
+    --silver: #8A8D8F;     /* Premium Silver */
+    --rule: #e4e4e4;
+    --rule-soft: #f0f0f0;
+    --accent: #A50034;     /* LG Red */
+    --accent-2: #85714D;   /* Highlight Gold */
+    --ok: #2f6a46;
+    --pending: #b8b8b8;
+    --chalk-bg: #1a1a1a;
+    --chalk: #f5f5f5;
+  }
+  html, body { background: #d0d0d0; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .serif { font-family: 'Noto Serif KR', 'Noto Serif', Georgia, serif; }
+  .mono  { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
+
+  /* ---------- Base slide ---------- */
+  .slide {
+    background: var(--bg);
+    color: var(--ink);
+    padding: 100px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .slide.paper { background: var(--paper); }
+  .slide.cream-deep { background: var(--bg-deep); }
+  .slide.dark { background: #141210; color: #f1ebdc; }
+  .slide.dark .muted { color: #a59c89; }
+
+  /* Global logo top-right on every slide (runtime-injected, see bottom script) */
+  .deck-logo {
+    position: absolute;
+    top: 0px;
+    right: 40px;
+    width: 207px;
+    height: auto;
+    z-index: 10;
+    opacity: 0.95;
+    pointer-events: none;
+  }
+  .slide.dark .deck-logo { filter: invert(1) brightness(1.1); opacity: 0.85; }
+  .slide.no-logo .deck-logo { display: none; }
+
+  /* Header chrome ---------- */
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    font-size: 24px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-weight: 500;
+    padding-right: 240px;  /* reserve space for logo */
+  }
+  .head .time { font-variant-numeric: tabular-nums; }
+  .head .section-tag { font-weight: 600; color: var(--ink); letter-spacing: 0.08em;}
+
+  /* Progress indicator (multi-part agenda / homework tracker) */
+  .progress {
+    display: flex;
+    gap: 40px;
+    font-size: 20px;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .progress .item { display: inline-flex; align-items: center; gap: 10px; }
+  .progress .num { font-family: 'Noto Serif KR', serif; font-weight: 700; color: var(--ink); }
+  .progress .st { font-size: 22px; width: 22px; display: inline-block; text-align: center; }
+  .progress .done { color: var(--ok); }
+  .progress .pend { color: var(--pending); }
+  .progress .cur .st { color: var(--accent-2); }
+  .progress .cur .num { color: var(--accent-2); }
+  .progress .cur .label { color: var(--ink); font-weight: 700; }
+
+  /* Titles */
+  .kicker {
+    font-size: 24px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 24px;
+  }
+  h1.title { font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 96px; line-height: 1.08; letter-spacing: -0.01em; margin: 0; }
+  h2.title { font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 72px; line-height: 1.12; letter-spacing: -0.01em; margin: 0; }
+  h3.subtitle { font-weight: 400; font-size: 36px; line-height: 1.4; color: var(--ink-2); margin: 24px 0 0; letter-spacing: -0.005em; }
+  .lead { font-size: 34px; line-height: 1.55; color: var(--ink-2); }
+
+  /* Rules */
+  .hair { border: 0; border-top: 1px solid var(--rule); margin: 40px 0; }
+  .thick-rule { border: 0; border-top: 2px solid var(--ink); margin: 0 0 28px; width: 80px; }
+
+  /* Big number */
+  .big-num {
+    font-family: 'Noto Serif KR', serif;
+    font-weight: 900;
+    font-size: 180px;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+  }
+  .big-num .unit { font-size: 56px; font-weight: 600; color: var(--muted); margin-left: 8px; letter-spacing: 0.02em; }
+
+  /* Cards */
+  .card { background: var(--paper); border: 1px solid var(--rule); padding: 40px; box-sizing: border-box; }
+  .card.dark { background: #1a1815; border-color: #2e2a24; color: #f1ebdc; }
+
+  /* Code/mono styling */
+  .mono-box { background: #141210; color: #e8e2ce; padding: 32px 36px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 24px; line-height: 1.6; }
+  .mono-box .c { color: #8a8270; }
+  .mono-box .k { color: #e0a96d; }
+
+  /* Watermark chapter number */
+  .watermark {
+    position: absolute;
+    font-family: 'Noto Serif KR', serif;
+    font-weight: 900;
+    font-size: 360px;
+    line-height: 0.8;
+    color: #A50034;
+    opacity: 0.06;
+    top: 110px;
+    right: 120px;
+    letter-spacing: -0.08em;
+    pointer-events: none;
+    user-select: none;
+    z-index: 0;
+  }
+
+  /* Utility */
+  .flex { display: flex; }
+  .row { display: flex; }
+  .col { display: flex; flex-direction: column; }
+  .grow { flex: 1; }
+  .gap-8 { gap: 8px; } .gap-16 { gap: 16px; } .gap-24 { gap: 24px; } .gap-32 { gap: 32px; } .gap-40 { gap: 40px; } .gap-56 { gap: 56px; } .gap-80 { gap: 80px; }
+  .center { justify-content: center; align-items: center; }
+  .between { justify-content: space-between; }
+  .w-half { flex: 1 1 50%; }
+  .pill { display: inline-block; padding: 8px 18px; border: 1px solid var(--ink); border-radius: 999px; font-size: 20px; letter-spacing: 0.06em; font-weight: 500; text-transform: uppercase;}
+  .accent { color: var(--accent); }
+  .accent2 { color: var(--accent-2); }
+  .muted { color: var(--muted); }
+  .ink { color: var(--ink); }
+
+  /* Tables */
+  table.grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 26px;
+    line-height: 1.45;
+  }
+  table.grid th, table.grid td {
+    text-align: left;
+    padding: 20px 22px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  table.grid thead th {
+    font-size: 20px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px;
+  }
+  table.grid td.first { font-weight: 600; }
+
+  /* Slide-level classes */
+  .fill { flex: 1; }
+
+  /* Chalkboard look (dark callout box) */
+  .chalk {
+    background: var(--chalk-bg);
+    color: var(--chalk);
+    padding: 36px 48px;
+    border-radius: 4px;
+    font-family: 'Noto Serif KR', serif;
+    position: relative;
+    box-shadow: inset 0 0 80px rgba(0,0,0,0.3);
+  }
+  .chalk .chalk-num { font-size: 46px; font-weight: 900; color: #f6eac2; margin-right: 16px; }
+  .chalk .chalk-q { font-size: 40px; font-weight: 600; letter-spacing: -0.005em; line-height: 1.35; }
+  .chalk .chalk-sub { font-size: 24px; color: #b6ad90; margin-top: 8px; font-family: 'Noto Sans KR'; }
+  .chalk .state { margin-top: 12px; font-size: 22px; letter-spacing: 0.08em; font-family: 'JetBrains Mono', monospace; color: #9a9176;}
+
+  /* Footer */
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    font-size: 24px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  /* Chapter markers */
+  .chap-label { font-size: 28px; letter-spacing: 0.32em; color: var(--accent); text-transform: uppercase; font-weight: 600;}
+
+  /* Speaker slash separator */
+  .dot-sep::before { content: '·'; margin: 0 14px; color: var(--muted); }
+
+  /* KPI grid */
+  .kpi {
+    background: var(--paper);
+    border-top: 3px solid var(--ink);
+    padding: 44px 40px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-height: 340px;
+  }
+  .kpi .role { font-size: 22px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 600;}
+  .kpi .num { font-family: 'Noto Serif KR', serif; font-size: 150px; line-height: 0.9; font-weight: 900; letter-spacing: -0.04em; color: var(--ink); }
+  .kpi .num .u { font-size: 44px; font-weight: 600; color: var(--muted); margin-left: 6px; }
+  .kpi .label { font-size: 24px; color: var(--ink-2); line-height: 1.4; margin-top: auto; }
+
+  /* Timeline bars (gantt) */
+  .timeline { display: flex; border: 2px solid var(--ink); height: 100px; font-size: 20px; }
+  .timeline .seg { display: flex; flex-direction: column; justify-content: center; padding: 10px 16px; border-right: 1px solid var(--ink); color: var(--ink); font-weight: 500; }
+  .timeline .seg:last-child { border-right: 0; }
+  .timeline .seg .t { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 600;}
+  .timeline .seg .n { font-size: 24px; font-weight: 600; margin-top: 4px;}
+  .timeline .seg .d { font-size: 18px; color: var(--muted); margin-top: 2px;}
+  .timeline .chap { background: rgba(165,0,52,0.08); }
+  .timeline .demo { background: rgba(133,113,77,0.15); }
+  .timeline .meta { background: #f0f0f0; }
+
+  /* Bullet styles */
+  ul.clean { list-style: none; padding: 0; margin: 0; }
+  ul.clean li { padding: 14px 0; border-bottom: 1px solid var(--rule-soft); font-size: 28px; line-height: 1.45; }
+  ul.clean li:last-child { border-bottom: 0; }
+  ul.clean li b { font-weight: 700; color: var(--ink); }
+  ul.clean.tight li { padding: 10px 0; font-size: 26px; }
+
+  /* Emphasis (underline highlight) — hl = red, hl2 = gold */
+  .hl { background: linear-gradient(transparent 62%, rgba(165,0,52,0.14) 62%, rgba(165,0,52,0.14) 94%, transparent 94%); padding: 0 2px; color: var(--accent); font-weight: 700; }
+  .hl2 { background: linear-gradient(transparent 62%, rgba(133,113,77,0.18) 62%, rgba(133,113,77,0.18) 94%, transparent 94%); padding: 0 2px; color: var(--accent-2); font-weight: 700; }
+
+  /* Tree / code listing */
+  .tree { font-family: 'JetBrains Mono', monospace; font-size: 22px; line-height: 1.7; color: var(--ink-2); }
+  .tree .node { padding: 2px 0; }
+  .tree .star { color: var(--accent-2); font-weight: 700; }
+  .tree .hdr { font-size: 22px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-top: 14px; margin-bottom: 10px; font-family: 'Noto Sans KR'; border-top: 1px solid var(--rule); padding-top: 14px;}
+  .tree .hdr:first-child { border-top: 0; padding-top: 0; margin-top: 0;}
+
+  /* Flow diagram */
+  .flow-node {
+    align-self: center;
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    padding: 16px 36px;
+    font-size: 28px;
+    font-weight: 600;
+    min-width: 360px;
+    text-align: center;
+    border-radius: 2px;
+  }
+  .flow-node.accent-node { background: var(--ink); color: var(--paper); }
+  .flow-arrow { align-self: center; width: 2px; height: 28px; background: var(--ink); position: relative; }
+  .flow-arrow::after { content: ''; position: absolute; bottom: -2px; left: -6px; border: 7px solid transparent; border-top-color: var(--ink); }
+
+  /* Quote blocks */
+  .quote {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 58px;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .quote.sm { font-size: 44px; }
+  .quote.xs { font-size: 36px; }
+  .quote .mark { color: var(--accent-2); font-family: 'Noto Serif KR', serif;}
+</style>
+</head>
+<body>
+
+<deck-stage width="1920" height="1080">
+
+  <!-- ============================================================
+       SLIDES GO HERE.
+       Each slide is a <section class="slide ...">. Copy archetype
+       markup from references/slide-archetypes.md and fill content.
+       Background variants: (default white) · paper · cream-deep · dark
+       Always give each <section> a sequential NN Short Name label.
+       ============================================================ -->
+
+  <!-- ===================== 01 · TITLE ===================== -->
+  <section data-label="01 Title" class="slide paper">
+    <div class="head">
+      <div><span class="section-tag">AI &amp; BEYOND · CMDSPACE</span></div>
+      <div>멤버 인사이트 · 라이트닝</div>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; justify-content:center; max-width: 1560px;">
+      <div class="kicker">MEMBER INSIGHT — LIGHTNING TALK</div>
+      <h1 class="title" style="font-size: 90px;">Claude Agent SDK로<br>어떤 것까지 가능할까?</h1>
+      <h3 class="subtitle" style="font-family:'Noto Serif KR'; font-size:50px; font-weight:400; color: var(--muted); margin-top: 32px;">
+        Claude Code CLI <span class="hl">완전 대체</span> 가능?!
+      </h3>
+      <hr class="hair" style="margin: 56px 0 36px; width: 200px; border-color: var(--ink);">
+      <div style="display:flex; gap:80px; font-size: 26px; color: var(--ink-2); line-height: 1.6;">
+        <div>
+          <div class="mono" style="font-size: 24px; letter-spacing:0.08em; color: var(--muted); text-transform: uppercase; margin-bottom: 6px;">Speaker</div>
+          <div style="font-weight: 700; font-size: 32px;">박준 <span style="color: var(--muted); font-weight:400;">/ JoonLab</span></div>
+          <div style="color: var(--muted); margin-top: 4px;">LLM 연구 · AI 강사 · 컨설턴트</div>
+        </div>
+        <div>
+          <div class="mono" style="font-size: 24px; letter-spacing:0.08em; color: var(--muted); text-transform: uppercase; margin-bottom: 6px;">When</div>
+          <div style="font-weight: 700; font-size: 32px;">2026-06-11 <span style="color:var(--muted); font-weight:400;">(목)</span></div>
+          <div style="color: var(--muted); margin-top: 4px;">15~20분 라이트닝</div>
+        </div>
+      </div>
+    </div>
+    <div class="foot" style="margin-top: auto; align-items: flex-end;">
+      <div class="serif" style="font-size: 28px; font-style: italic; color: var(--ink-2); max-width: 1200px; line-height: 1.5;">
+        “바닥부터 만들지 말고, Claude Code harness를 상속하라.”
+      </div>
+      <div style="font-size: 24px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600;">01 / 15</div>
+    </div>
+  </section>
+
+  <!-- ===================== 02 · 여정의 시작 ===================== -->
+  <section data-label="02 Origin" class="slide cream-deep">
+    <div class="head"><div class="section-tag">Origin Story</div><div class="time">여정의 시작</div></div>
+    <div style="margin-top: 28px;">
+      <div class="kicker">WHERE IT STARTED</div>
+      <h2 class="title" style="font-size: 64px;">유튜브 영상 하나에서 출발</h2>
+      <h3 class="subtitle">“직접 클로드 만들어봤어 (생각보다 쉬움)”</h3>
+    </div>
+    <div style="flex: 1; display: flex; gap: 72px; align-items: center; margin-top: 36px;">
+      <div style="flex: 1.1;">
+        <div class="serif" style="font-size: 36px; line-height: 1.5; color: var(--ink-2);">
+          핵심 메시지는 단 하나 —<br>
+          <span class="hl">바닥부터 만들지 말고 harness를 상속</span>하라.
+        </div>
+        <div style="margin-top: 36px; padding: 24px 28px; border-left: 3px solid var(--accent-2); background: rgba(133,113,77,0.06); font-size: 25px; line-height: 1.55; color: var(--ink-2);">
+          <b>메타 포인트:</b> 이 영상 자체도 Claude로 처리했습니다.<br>
+          <span class="mono accent2">youtube-download</span> → <span class="mono accent2">elevenlabs-stt</span> → 요약까지 전부 skill로.
+        </div>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: stretch;">
+        <div class="flow-node" style="min-width: 0;">YouTube mp3 추출 <span class="mono muted" style="font-size:18px;">youtube-download</span></div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node" style="min-width: 0; border-color: var(--accent-2);">음성 전사 <span class="mono muted" style="font-size:18px;">elevenlabs-stt</span></div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node accent-node" style="min-width: 0;">Claude 요약 → 인사이트</div>
+      </div>
+    </div>
+    <div class="foot"><div></div><div>02 / 15</div></div>
+  </section>
+
+  <!-- ===================== 03 · Agent SDK란 ===================== -->
+  <section data-label="03 What Is SDK" class="slide paper">
+    <div class="head"><div class="section-tag">Definition</div><div class="time">Agent SDK란</div></div>
+    <div style="margin-top: 24px;">
+      <div class="kicker">WHAT IS THE AGENT SDK</div>
+      <h2 class="title" style="font-size: 64px;">SDK는 CLI를 <span class="hl">subprocess</span>로 실행한다</h2>
+      <h3 class="subtitle">API 직접 호출이 아니라, Claude Code harness를 그대로 상속</h3>
+    </div>
+    <div style="flex: 1; display: flex; gap: 80px; margin-top: 40px; align-items: center;">
+      <div style="flex: 1.2; display: flex; flex-direction: column; align-items: stretch;">
+        <div class="flow-node">클라이언트 (내 코드)</div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node accent-node">Claude Agent SDK</div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node">Claude Code CLI <span class="mono muted" style="font-size:18px;">subprocess</span></div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node" style="border-color: var(--accent-2);">Claude</div>
+      </div>
+      <div style="flex: 1;">
+        <div class="mono" style="font-size: 20px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-2); margin-bottom: 16px;">왜 중요한가</div>
+        <ul class="clean">
+          <li>CLI의 <b>모든 harness를 상속</b> — Skills · Hooks · Subagents · MCP · Sessions</li>
+          <li>인증도 CLI 것을 그대로 — <b>OAuth 토큰</b> 사용 가능</li>
+          <li>제품에 <b>임베드</b>: FastAPI · 웹 백엔드 · 자동화 파이프라인</li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot"><div></div><div>03 / 15</div></div>
+  </section>
+
+  <!-- ===================== 04 · 4-Phase 개요 ===================== -->
+  <section data-label="04 Four Phases" class="slide cream-deep">
+    <div class="head"><div class="section-tag">Tutorial Map</div><div class="time">4-Phase 개요</div></div>
+    <div style="margin-top: 20px;">
+      <div class="kicker">WHAT WE BUILT</div>
+      <h2 class="title" style="font-size: 60px;">대화만으로 만든 4-Phase 튜토리얼</h2>
+      <h3 class="subtitle">기초 → CLI 재현 → 웹앱 → Harness 정밀 구현</h3>
+    </div>
+    <div style="flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; margin-top: 44px;">
+      <div style="display: flex; flex-direction: column; border-top: 3px solid var(--ink); padding-top: 22px;">
+        <div style="font-family:'Noto Serif KR'; font-weight: 900; font-size: 88px; line-height: 0.9;">01</div>
+        <div class="mono" style="font-size: 17px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 18px;">SDK 기초</div>
+        <div style="font-size: 27px; font-weight: 700; line-height: 1.25; margin-top: 10px;">6예제</div>
+        <div style="margin-top: 12px; font-size: 21px; color: var(--ink-2); line-height: 1.45;">query·멀티턴·권한콜백·MCP·프롬프트·Research</div>
+      </div>
+      <div style="display: flex; flex-direction: column; border-top: 3px solid var(--ink); padding-top: 22px;">
+        <div style="font-family:'Noto Serif KR'; font-weight: 900; font-size: 88px; line-height: 0.9;">02</div>
+        <div class="mono" style="font-size: 17px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 18px;">CLI 재현</div>
+        <div style="font-size: 27px; font-weight: 700; line-height: 1.25; margin-top: 10px;">4종</div>
+        <div style="margin-top: 12px; font-size: 21px; color: var(--ink-2); line-height: 1.45;">코드탐색·PR생성·일괄리팩토링·코드리뷰</div>
+      </div>
+      <div style="display: flex; flex-direction: column; border-top: 3px solid var(--ink); padding-top: 22px;">
+        <div style="font-family:'Noto Serif KR'; font-weight: 900; font-size: 88px; line-height: 0.9;">03</div>
+        <div class="mono" style="font-size: 17px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 18px;">Research 웹앱</div>
+        <div style="font-size: 27px; font-weight: 700; line-height: 1.25; margin-top: 10px;">FastAPI+SSE</div>
+        <div style="margin-top: 12px; font-size: 21px; color: var(--ink-2); line-height: 1.45;">실시간 스트리밍 리서치 에이전트</div>
+      </div>
+      <div style="display: flex; flex-direction: column; border-top: 3px solid var(--accent-2); padding-top: 22px;">
+        <div style="font-family:'Noto Serif KR'; font-weight: 900; font-size: 88px; line-height: 0.9;" class="accent2">04</div>
+        <div class="mono" style="font-size: 17px; color: var(--accent-2); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 18px;">Harness 정밀 구현</div>
+        <div style="font-size: 27px; font-weight: 700; line-height: 1.25; margin-top: 10px;">8예제</div>
+        <div style="margin-top: 12px; font-size: 21px; color: var(--ink-2); line-height: 1.45;">CLI harness 전수 실증</div>
+      </div>
+    </div>
+    <div class="foot"><div></div><div>04 / 15</div></div>
+  </section>
+
+  <!-- ===================== 05 · Phase 1·2 하이라이트 ===================== -->
+  <section data-label="05 Phase 1 2" class="slide paper">
+    <div class="head"><div class="section-tag">Phase 1 · 2</div><div class="time">기초 + CLI 재현</div></div>
+    <div style="margin-top: 20px;">
+      <div class="kicker">FOUNDATIONS &amp; CLI PARITY</div>
+      <h2 class="title" style="font-size: 58px;">5줄 에이전트부터 일괄 리팩토링까지</h2>
+    </div>
+    <div style="flex: 1; display: flex; gap: 48px; margin-top: 36px; align-items: stretch;">
+      <div style="flex: 1; border-top: 3px solid var(--ink); padding-top: 24px;">
+        <div class="mono" style="font-size: 18px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase;">Phase 1 — SDK 기초</div>
+        <ul class="clean tight" style="margin-top: 14px;">
+          <li><b>query()</b> 5줄 one-shot 에이전트</li>
+          <li><b>ClaudeSDKClient</b> 멀티턴 — 메모리 자동 유지</li>
+          <li>권한 콜백 <span class="mono">can_use_tool</span> — <span class="hl">rm -rf 차단</span></li>
+          <li><span class="mono">@tool</span> + in-process MCP 도구 3종 자율 병렬 호출</li>
+        </ul>
+        <div style="margin-top: 18px; padding: 14px 18px; background: rgba(133,113,77,0.08); font-size: 22px; color: var(--ink-2);">
+          캐시 효과: <span class="mono">$0.374 → $0.170</span> <b class="accent2">55% 절감</b>
+        </div>
+      </div>
+      <div style="flex: 1; border-top: 3px solid var(--ink); padding-top: 24px;">
+        <div class="mono" style="font-size: 18px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase;">Phase 2 — CLI 일상 재현</div>
+        <ul class="clean tight" style="margin-top: 14px;">
+          <li>코드베이스 탐색 — Glob+Read 요약 &amp; 학습 순서</li>
+          <li>git diff → <b>PR description</b> 자동 생성</li>
+          <li>다중 파일 일괄 리팩토링 — dry-run → apply → grep 검증</li>
+          <li>구조화 코드 리뷰 — <span class="mono">JSON</span> 출력 → 파이프라인 연결</li>
+        </ul>
+        <div style="margin-top: 18px; padding: 14px 18px; background: rgba(165,0,52,0.06); font-size: 22px; color: var(--ink-2);">
+          발견: <span class="mono">async with</span> 블록별 세션 독립 → 멀티턴은 같은 client 안에서
+        </div>
+      </div>
+    </div>
+    <div class="foot"><div></div><div>05 / 15</div></div>
+  </section>
+
+  <!-- ===================== 06 · Phase 3 Research 웹앱 ===================== -->
+  <section data-label="06 Phase 3" class="slide cream-deep">
+    <div class="head"><div class="section-tag">Phase 3</div><div class="time">Research 웹앱</div></div>
+    <div style="margin-top: 20px;">
+      <div class="kicker">PRODUCT EMBED · FASTAPI + SSE</div>
+      <h2 class="title" style="font-size: 60px;">실시간 스트리밍 Research 에이전트</h2>
+      <h3 class="subtitle">ClaudeSDKClient를 백엔드에 임베드 · “The Research Daily”</h3>
+    </div>
+    <div style="flex: 1; display: flex; gap: 56px; margin-top: 36px; align-items: center;">
+      <div style="flex: 1.1;">
+        <ul class="clean">
+          <li>SSE <b>5종 이벤트</b> — <span class="mono" style="font-size:22px;">status · thinking · tool · chunk · done</span></li>
+          <li>생각 과정·도구 호출이 <b>신문 스타일</b> 화면에 실시간으로</li>
+          <li>질문 1건 = <b>WebSearch 1 + WebFetch 3</b> 자율 수행</li>
+        </ul>
+      </div>
+      <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        <div class="kpi" style="min-height: 0; padding: 32px 28px;">
+          <div class="role">소요 시간</div>
+          <div class="num" style="font-size: 110px;">43.5<span class="u">초</span></div>
+        </div>
+        <div class="kpi" style="min-height: 0; padding: 32px 28px; background: #141210; border-top-color: var(--accent-2); color: #f1ebdc;">
+          <div class="role" style="color: var(--accent-2);">비용 / 턴</div>
+          <div class="num" style="font-size: 110px; color: #fdf7e8;">$0.25</div>
+          <div class="label" style="color:#c9c1ad; margin-top: 4px;">5턴</div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><div></div><div>06 / 15</div></div>
+  </section>
+
+  <!-- ===================== 07 · Phase 4 Harness ===================== -->
+  <section data-label="07 Phase 4" class="slide paper">
+    <div class="head"><div class="section-tag">Phase 4</div><div class="time">Harness 정밀 구현</div></div>
+    <div style="margin-top: 20px;">
+      <div class="kicker">HARNESS · 8 EXAMPLES</div>
+      <h2 class="title" style="font-size: 58px;">CLI harness를 SDK로 전수 실증</h2>
+      <h3 class="subtitle">공식 문서를 cmux browser + 5개 병렬 sub-agent로 조사 후 구현</h3>
+    </div>
+    <div style="flex: 1; display: flex; gap: 44px; margin-top: 32px; align-items: center;">
+      <div style="flex: 1;">
+        <ul class="clean tight">
+          <li><b>Hooks</b> — <span class="mono">.env</span> 쓰기 deny 동작 확인</li>
+          <li><b>Subagents</b> — reviewer·tester·docs 3개 동시 spawn</li>
+          <li><b>Sessions</b> — resume 기억 / fork 분기 / 원본 무영향</li>
+          <li><b>Skills</b> — 222개 중 1개만 활성화해 발동</li>
+        </ul>
+        <div style="margin-top: 18px; padding: 16px 20px; border-left: 3px solid var(--accent); font-size: 23px; color: var(--ink-2); line-height: 1.5;">
+          발견: <span class="hl">Skill 도구 ≠ Skill 동작</span> — 활성화는 SDK가, 실제 행동은 system_prompt가 제어
+        </div>
+      </div>
+      <div style="flex: 1; border: 1px solid var(--rule); padding: 32px 36px; background: var(--bg-deep);">
+        <div class="mono" style="font-size: 19px; color: var(--accent-2); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px;">3-Skill 인포그래픽 파이프라인</div>
+        <div class="tree" style="font-size: 24px; line-height: 1.9;">
+<pre style="margin:0; font-family: inherit;">youtube-download
+   ↓  <span style="color:var(--muted);">단일 prompt · 자율 4단계</span>
+elevenlabs-stt
+   ↓
+openai-gpt-image-2
+   ↓
+한국어 인포그래픽 <span class="accent2">PNG</span></pre>
+        </div>
+        <div style="margin-top: 18px; font-size: 24px; font-weight: 700;">230.8초 · <span class="accent2">$0.72</span> · 16턴</div>
+      </div>
+    </div>
+    <div class="foot"><div></div><div>07 / 15</div></div>
+  </section>
+
+  <!-- ===================== 08 · CLI ↔ SDK 매핑표 ===================== -->
+  <section data-label="08 Mapping" class="slide cream-deep">
+    <div class="head"><div class="section-tag">The Core Table</div><div class="time">CLI ↔ SDK</div></div>
+    <div style="margin-top: 24px;">
+      <div class="kicker">DOES IT ALL MAP?</div>
+      <h2 class="title" style="font-size: 60px;">CLI harness ↔ SDK 매핑</h2>
+    </div>
+    <div style="flex: 1; display: flex; align-items: center; margin-top: 28px;">
+      <table class="grid" style="font-size: 25px;">
+        <thead>
+          <tr>
+            <th style="width: 22%;">Harness</th>
+            <th style="width: 30%; color: var(--muted);">Claude Code CLI</th>
+            <th style="width: 36%; color: var(--ink);">Agent SDK</th>
+            <th style="width: 12%;">판정</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="first">Skills</td><td style="color: var(--muted);"><span class="mono" style="font-size:21px;">SKILL.md</span></td><td><span class="mono" style="font-size:21px;">setting_sources + skills=[...]</span></td><td><b class="accent2">✅</b></td></tr>
+          <tr><td class="first">Hooks</td><td style="color: var(--muted);">settings.json 셸 명령</td><td><span class="mono" style="font-size:21px;">HookMatcher</span> async 콜백</td><td><b class="accent2">✅</b></td></tr>
+          <tr><td class="first">Subagents</td><td style="color: var(--muted);"><span class="mono" style="font-size:21px;">.claude/agents/*.md</span></td><td><span class="mono" style="font-size:21px;">AgentDefinition</span> 병렬 spawn</td><td><b class="accent2">✅</b></td></tr>
+          <tr><td class="first">Sessions</td><td style="color: var(--muted);"><span class="mono" style="font-size:21px;">--continue / --resume</span></td><td><span class="mono" style="font-size:21px;">resume / fork_session</span></td><td><b class="accent2">✅</b></td></tr>
+          <tr><td class="first">SessionStorage</td><td style="color: var(--muted);"><span class="mono" style="font-size:21px;">~/.claude/projects/</span></td><td>커스텀 store (Redis/S3)</td><td><b style="color:var(--accent);">✅ 우위</b></td></tr>
+          <tr><td class="first">SessionStart/End hook</td><td style="color: var(--muted);">settings.json</td><td>Python 직접 불가 (TS는 가능)</td><td><b style="color:var(--accent-2);">⚠️</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="foot"><div></div><div>08 / 15</div></div>
+  </section>
+
+  <!-- ===================== 09 · 팩트체크 결론 ===================== -->
+  <section data-label="09 Verdict" class="slide paper" style="padding: 130px 150px;">
+    <div class="head"><div class="section-tag">Verdict</div><div class="time">완전 대체 가능?</div></div>
+    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+      <div class="kicker" style="margin-bottom: 36px;">FACT-CHECK</div>
+      <h2 class="title" style="font-size: 80px; line-height: 1.25;">
+        거의 <span class="hl">YES</span>,<br>단 <span class="hl2">목적이 다르다.</span>
+      </h2>
+      <hr class="hair" style="margin: 64px 0 44px; width: 140px; border-color: var(--ink);">
+      <div class="serif" style="font-size: 34px; line-height: 1.6; color: var(--ink-2); display: flex; flex-direction: column; gap: 14px;">
+        <div>예외 둘뿐 — Python의 SessionStart/End hook, 인터랙티브 터미널 UX.</div>
+        <div>SDK가 더 강한 것 — 런타임 동적 정의 · 함수형 hook · 커스텀 SessionStore.</div>
+        <div>한 줄 정리 — <b>“Claude Code = SDK + 표준 harness 번들”</b></div>
+      </div>
+    </div>
+    <div class="foot"><div></div><div>09 / 15</div></div>
+  </section>
+
+  <!-- ===================== 10 · 과금 ① OAuth 메커니즘 ===================== -->
+  <section data-label="10 Billing OAuth" class="slide cream-deep">
+    <div class="head"><div class="section-tag">Billing · Q1</div><div class="time">API Key 없이?</div></div>
+    <div style="margin-top: 24px;">
+      <div class="kicker">QUESTION 1 — NO API KEY?</div>
+      <h2 class="title" style="font-size: 58px;">API Key 없이 가능? <span class="hl">→ 가능</span></h2>
+      <h3 class="subtitle">SDK가 CLI를 subprocess로 실행 → CLI의 OAuth 토큰을 사용</h3>
+    </div>
+    <div style="flex: 1; display: flex; gap: 72px; margin-top: 36px; align-items: center;">
+      <div style="flex: 1.2;">
+        <div class="mono-box" style="font-size: 22px;">
+          <span class="c"># API 직접 호출이 아니다</span><br>
+          [클라이언트] → [Agent SDK]<br>
+          &nbsp;&nbsp;&nbsp;→ [Claude Code CLI] → [Claude]<br><br>
+          <span class="c"># 인증</span><br>
+          <span class="k">claude setup-token</span><br>
+          CLAUDE_CODE_OAUTH_TOKEN=<span class="k">sk-ant-oat01-…</span>
+        </div>
+      </div>
+      <div style="flex: 1;">
+        <ul class="clean">
+          <li>구독 OAuth 토큰만으로 <b>20개 스크립트 전부 동작</b></li>
+          <li>공개 백엔드에 토큰 박기 <b>금지</b> — 로컬·개인용</li>
+        </ul>
+        <div style="margin-top: 24px; font-size: 21px; color: var(--muted);" class="mono">출처 · velog 조현상 (2026-04-02)<br>“API Key 없이 Claude Agent 서버 만들기”</div>
+      </div>
+    </div>
+    <div class="foot"><div></div><div>10 / 15</div></div>
+  </section>
+
+  <!-- ===================== 11 · 과금 ② 정책 변경 ===================== -->
+  <section data-label="11 Billing Policy" class="slide paper">
+    <div class="head"><div class="section-tag">Billing · Q2</div><div class="time">정책 변경</div></div>
+    <div style="margin-top: 20px;">
+      <div class="kicker">QUESTION 2 — STARTING JUNE 15, 2026</div>
+      <h2 class="title" style="font-size: 56px;"><span class="hl">2026-06-15</span>부터 구독 한도에서 분리</h2>
+      <h3 class="subtitle">발표일 기준 <b>4일 후!</b> · 태극님 질문이 발단 — “구독으로 무제한”은 이제 틀림</h3>
+    </div>
+    <div style="flex: 1; display: flex; gap: 60px; margin-top: 30px; align-items: center;">
+      <div style="flex: 1;">
+        <table class="grid" style="font-size: 26px;">
+          <thead><tr><th style="width: 60%;">플랜</th><th style="width: 40%; color: var(--ink);">월간 Agent SDK 크레딧</th></tr></thead>
+          <tbody>
+            <tr><td class="first">Pro</td><td style="font-weight:600;">$20</td></tr>
+            <tr><td class="first">Max 5x</td><td style="font-weight:600;">$100</td></tr>
+            <tr><td class="first">Max 20x</td><td style="font-weight:600;">$200</td></tr>
+            <tr><td class="first">Team Std / Premium</td><td style="font-weight:600;">$20 / $100 <span class="muted" style="font-size:21px;">per seat</span></td></tr>
+            <tr><td class="first">Enterprise</td><td style="font-weight:600;">$20 / $200 <span class="muted" style="font-size:21px;">Premium</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="flex: 0.85;">
+        <div class="mono" style="font-size: 19px; color: var(--accent-2); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 14px;">작동 방식</div>
+        <ul class="clean tight">
+          <li>1회 opt-in → <b>매월 리셋</b> (이월 없음)</li>
+          <li>크레딧 <b>먼저 차감</b> → 소진 시 종량제 or 중단</li>
+          <li>적용: Agent SDK · <span class="mono">claude -p</span> · GitHub Actions</li>
+          <li>미적용: 인터랙티브 CLI · 웹/데스크톱 Claude</li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot"><div></div><div>11 / 15</div></div>
+  </section>
+
+  <!-- ===================== 12 · OAuth 실측 증명 ===================== -->
+  <section data-label="12 OAuth Proof" class="slide cream-deep">
+    <div class="head"><div class="section-tag">Proof</div><div class="time">OAuth 실측</div></div>
+    <div style="margin-top: 20px;">
+      <div class="kicker">MEASURED PROOF · oauth_version/RESULTS.md</div>
+      <h2 class="title" style="font-size: 58px;"><span class="mono" style="font-size:46px;">apiKeySource</span>가 바뀌었다</h2>
+    </div>
+    <div style="flex: 1; display: flex; gap: 64px; margin-top: 36px; align-items: center;">
+      <div style="flex: 1.1;">
+        <div style="display: flex; align-items: center; gap: 28px;">
+          <div class="mono" style="font-size: 30px; color: var(--muted); text-decoration: line-through;">'ANTHROPIC_API_KEY'</div>
+          <div style="font-size: 40px; color: var(--accent);">→</div>
+          <div class="mono accent" style="font-size: 36px; font-weight: 700;">'none'</div>
+        </div>
+        <div style="margin-top: 28px; font-size: 26px; color: var(--ink-2); line-height: 1.55;">
+          <span class="hl2">종량제 경로가 아니라는 증거.</span><br>
+          API Key 강제 제거 + OAuth 토큰만 남기고 전부 재실행.
+        </div>
+      </div>
+      <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        <div class="kpi" style="min-height: 0; padding: 32px 28px;">
+          <div class="role">재실행 스크립트</div>
+          <div class="num" style="font-size: 108px;">20<span class="u">개</span></div>
+          <div class="label" style="margin-top:4px;">전부 동작</div>
+        </div>
+        <div class="kpi" style="min-height: 0; padding: 32px 28px; background: #141210; border-top-color: var(--accent-2); color: #f1ebdc;">
+          <div class="role" style="color: var(--accent-2);">인증 실패</div>
+          <div class="num" style="font-size: 108px; color: #fdf7e8;">0<span class="u" style="color:#a59c89;">건</span></div>
+          <div class="label" style="color:#c9c1ad; margin-top:4px;">is_error=True 없음</div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><div></div><div>12 / 15</div></div>
+  </section>
+
+  <!-- ===================== 13 · 라이브 데모 (dark) ===================== -->
+  <section data-label="13 Live Demo" class="slide dark" style="padding: 100px 120px;">
+    <div class="head">
+      <div class="section-tag" style="color: var(--accent-2);">LIVE DEMO · 3 종</div>
+      <div class="time" style="color: #a59c89;">모두 OAuth / 구독 기반</div>
+    </div>
+    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 40px;">
+      <div>
+        <div class="kicker" style="color: var(--accent-2); margin-bottom: 18px;">DEMO</div>
+        <h1 class="title serif" style="color: #fdf7e8; font-size: 88px; line-height: 1.1;">직접 보겠습니다</h1>
+      </div>
+      <hr style="border: 0; border-top: 1px solid #3a3530; margin: 0; width: 160px;">
+      <div style="display: flex; flex-direction: column; gap: 22px; font-size: 36px; line-height: 1.4; color: #e8e2ce; font-family: 'Noto Serif KR'; font-weight: 500;">
+        <div><span class="mono" style="font-size: 24px; color: var(--accent-2); margin-right: 22px;">01</span>Research 웹앱 — 질문 입력 → SSE 스트리밍 → 보고서</div>
+        <div><span class="mono" style="font-size: 24px; color: var(--accent-2); margin-right: 22px;">02</span>CLI vs SDK 나란히 비교 — 같은 프롬프트, <span style="color:#fdf7e8;">apiKeySource 차이</span></div>
+        <div><span class="mono" style="font-size: 24px; color: var(--accent-2); margin-right: 22px;">03</span>3-Skill 인포그래픽 파이프라인 — 발표 중 백그라운드 결과</div>
+      </div>
+    </div>
+    <div class="foot" style="color: #6f6659;">
+      <div class="mono" style="font-size: 20px; letter-spacing: 0.2em;">“영상 1개가 인포그래픽이 됐습니다”</div>
+      <div>13 / 15</div>
+    </div>
+  </section>
+
+  <!-- ===================== 14 · 실무 시사점 ===================== -->
+  <section data-label="14 Takeaways" class="slide paper">
+    <div class="head"><div class="section-tag">For Practice</div><div class="time">실무 시사점</div></div>
+    <div style="margin-top: 20px;">
+      <div class="kicker">WHAT THIS MEANS FOR YOU</div>
+      <h2 class="title" style="font-size: 60px;">개인 실험 vs 프로덕션</h2>
+    </div>
+    <div style="flex: 1; display: flex; gap: 44px; margin-top: 36px; align-items: stretch;">
+      <div style="flex: 1; border-top: 3px solid var(--accent-2); padding-top: 26px;">
+        <div class="serif" style="font-size: 32px; font-weight: 700;">개인 실험 · 자동화</div>
+        <ul class="clean tight" style="margin-top: 16px;">
+          <li>크레딧 범위 <b>($20~$200)</b> 내 충분</li>
+          <li><span class="hl2">OAuth 방식 유효</span> — 로컬/개인용</li>
+        </ul>
+      </div>
+      <div style="flex: 1; border-top: 3px solid var(--accent); padding-top: 26px;">
+        <div class="serif" style="font-size: 32px; font-weight: 700;">프로덕션 · 대규모</div>
+        <ul class="clean tight" style="margin-top: 16px;">
+          <li>공식 문서가 <span class="hl">API Key 종량제 권장</span></li>
+          <li>크레딧은 개인 단위 — <b>풀링 불가</b></li>
+        </ul>
+      </div>
+    </div>
+    <div style="margin-top: 8px; padding: 24px 32px; background: var(--bg-deep); border-left: 3px solid var(--ink);">
+      <div class="serif" style="font-size: 30px; line-height: 1.5;">정석 워크플로우 — <b>CLI로 프로토타입 → SDK로 프로덕션.</b> 단 6/15 이후, “완전 대체”하면 <span class="accent">과금 버킷이 바뀐다.</span></div>
+    </div>
+    <div class="foot"><div></div><div>14 / 15</div></div>
+  </section>
+
+  <!-- ===================== 15 · 마무리 ===================== -->
+  <section data-label="15 Closing" class="slide cream-deep">
+    <div class="head"><div class="section-tag">Closing</div><div class="time">산출물 · 감사합니다</div></div>
+    <div style="margin-top: 20px;">
+      <div class="kicker">SHIP IT</div>
+      <h2 class="title" style="font-size: 62px;">전부 공개해뒀습니다</h2>
+    </div>
+    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 32px; max-width: 1500px;">
+      <div style="display: flex; align-items: center; gap: 36px; padding: 28px 0; border-bottom: 1px solid var(--rule);">
+        <div class="mono" style="font-size: 20px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; width: 140px; flex-shrink: 0;">발표 덱</div>
+        <div class="mono" style="font-size: 30px; font-weight: 600;">aibeyond-20260611-claude-agent-sdk.vercel.app</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 36px; padding: 28px 0; border-bottom: 1px solid var(--rule);">
+        <div class="mono" style="font-size: 20px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; width: 140px; flex-shrink: 0;">튜토리얼</div>
+        <div class="mono" style="font-size: 30px; font-weight: 600;">github.com/joonlab/claude-agent-sdk-tutorial</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 36px; padding: 28px 0;">
+        <div class="mono" style="font-size: 20px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; width: 140px; flex-shrink: 0;">참고</div>
+        <div style="font-size: 25px; color: var(--ink-2);">유튜브 영상 · velog 글 · 공식 Help Center 문서</div>
+      </div>
+    </div>
+    <div class="foot" style="padding-top: 28px; border-top: 2px solid var(--ink); align-items: center;">
+      <div class="serif" style="font-size: 30px; font-weight: 700; color: var(--ink);">감사합니다.</div>
+      <div style="font-size: 24px; color: var(--ink-2);">박준 <span class="muted" style="margin-left: 8px;">/ JoonLab</span> &nbsp;·&nbsp; 15 / 15</div>
+    </div>
+  </section>
+
+</deck-stage>
+
+<script src="deck-stage.js"></script>
+<script>
+  // Inject the deck logo into every slide at runtime.
+  // To change the logo, swap the file at assets/joonlab_logo.png (keep the name),
+  // or edit LOGO_SRC below. To hide the logo on a slide, add class="no-logo".
+  (function () {
+    const LOGO_SRC = 'assets/joonlab_logo.png';
+    const inject = () => {
+      document.querySelectorAll('section.slide').forEach(s => {
+        if (s.querySelector('.deck-logo')) return;
+        const img = document.createElement('img');
+        img.src = LOGO_SRC;
+        img.className = 'deck-logo';
+        img.alt = 'Logo';
+        s.appendChild(img);
+      });
+    };
+    if (document.readyState !== 'loading') inject();
+    else document.addEventListener('DOMContentLoaded', inject);
+  })();
+</script>
+</body>
+</html>
