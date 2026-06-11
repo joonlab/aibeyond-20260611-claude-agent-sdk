@@ -17,3 +17,4 @@ nohup.out
 
 # OS
 .DS_Store
+.vercel
