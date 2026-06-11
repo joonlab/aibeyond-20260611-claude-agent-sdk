@@ -31,8 +31,8 @@ import os
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import FileResponse, JSONResponse, Response
 from sse_starlette.sse import EventSourceResponse
 
 from claude_agent_sdk import (
@@ -136,6 +136,22 @@ async def research(request: Request, q: str):
 async def health():
     has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
     return JSONResponse({"ok": True, "api_key_set": has_key})
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    # 브라우저 기본 요청 — 404 로그 노이즈 방지
+    return Response(status_code=204)
+
+
+# Catch-all: /api/* 미정의 경로 외에는 어떤 경로든 리서치 웹앱(단일 페이지) 반환.
+# 데모 중 주소창에 /deck.html 등을 잘못 입력해도 항상 앱이 뜨도록 하는 안전장치.
+# (FastAPI는 위의 구체 라우트를 먼저 매칭하므로 /, /api/research, /api/health는 그대로 동작)
+@app.get("/{full_path:path}")
+async def spa_fallback(full_path: str):
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not Found")
+    return FileResponse(HERE / "frontend.html")
 
 
 if __name__ == "__main__":
